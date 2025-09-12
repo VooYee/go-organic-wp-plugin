@@ -9,7 +9,6 @@
 require 'plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
-
 // Prevent direct file access
 if (!defined('ABSPATH')) {
   exit;
