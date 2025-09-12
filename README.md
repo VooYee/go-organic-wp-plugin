@@ -116,7 +116,7 @@ The plugin supports two slug formats:
 
 1. **Simple Slug**: `my-post-title`
    - Assigns post to the default category
-   
+
 2. **Category/Slug Format**: `category-name/my-post-title`
    - Creates the category if it doesn't exist
    - Assigns the post to the specified category
