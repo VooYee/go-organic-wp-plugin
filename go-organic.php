@@ -174,6 +174,7 @@ function render_integration_page()
   $api_username = 'seo_gen_api_user';
   $new_password_info = null;
   $stored_password = get_option('go_organic_latest_password');
+  $stored_api_key = get_option('go_organic_latest_api_key');
 
   $user_id = username_exists($api_username);
   if (!$user_id) {
@@ -200,10 +201,67 @@ function render_integration_page()
       $stored_password = $new_password_info[0];
     }
   }
+
+  // Handle Connect Form
+  $connect_message = '';
+  if (isset($_POST['go_organic_connect']) && check_admin_referer('go_organic_connect_action', 'go_organic_connect_nonce')) {
+    $input_username = sanitize_text_field($_POST['go_organic_connect_username']);
+    $input_password = sanitize_text_field($_POST['go_organic_connect_password']);
+
+    if ($input_username && $input_password) {
+      $response = generate_api_key($input_username, $input_password);
+      
+      if ($response) {
+        $status_code = $response['status_code'];
+        if ($status_code === 201) {
+          $api_key = $response['data'];
+          update_option('go_organic_latest_api_key', $api_key);
+          $stored_api_key = $api_key;
+          $connect_message = '<div class="notice notice-success"><p>SEO Gen successfully connected</p></div>';
+        } else {
+          $json_response = json_decode($response['data'], true);
+          $error_message = $json_response['message'];
+          $connect_message = '<div class="notice notice-error"><p>' . $error_message . '</p></div>';
+        }
+      } else {
+        $connect_message = '<div class="notice notice-error"><p>Failed fetch API</p></div>';
+      }
+    } else {
+      $connect_message = '<div class="notice notice-error"><p>Username and Password are required</p></div>';
+    }
+
+    echo $connect_message;
+  }
+
+  // Connection Status
+  $is_connected = false;
+  if ($stored_api_key) {
+    $is_connected = go_organic_check_connection($stored_api_key);
+  }
+
   ?>
   <div class="wrap">
     <h1>SEO Gen Integration Credentials</h1>
     <p>Use these credentials for external API access.</p>
+
+    <!-- Connection Status -->
+    <?php if ($stored_api_key): ?>
+        <?php if ($is_connected): ?>
+            <div class="notice notice-success">
+                <p>
+                  <strong>Connection Status : </strong>
+                  <span style="color: green; font-size: 1.2em;">&#x2714;</span>   
+                </p>
+            </div>
+        <?php else: ?>
+            <div class="notice notice-error">
+                <p>
+                  <strong>Connection Status : </strong>
+                  <span style="color: red; font-size: 1.2em;">&#x2716;</span> 
+                </p>
+            </div>
+        <?php endif; ?>
+    <?php endif; ?>
 
     <table class="form-table">
       <tbody>
@@ -243,10 +301,87 @@ function render_integration_page()
       <input type="hidden" name="test_password_storage" value="1" />
       <?php submit_button('Test Password Storage'); ?>
     </form>
+
+    <!-- Connect Header -->
+    <h2 style="margin-top:30px;">Connect to SEO Gen</h2>
+    <p>Enter the credentials that have been registered in SEO Gen</p>
+              
+    <!-- Connect Form -->
+    <form method="post" action="" style="margin-top:20px;">
+      <?php wp_nonce_field('go_organic_connect_action', 'go_organic_connect_nonce'); ?>
+      <input type="hidden" name="go_organic_connect" value="1" />
+      <table class="form-table">
+        <tbody>
+          <tr>
+            <th><label for="go_organic_connect_username">Username</label></th>
+            <td><input type="text" name="go_organic_connect_username" id="go_organic_connect_username" class="regular-text" /></td>
+          </tr>
+          <tr>
+            <th><label for="go_organic_connect_password">Password</label></th>
+            <td><input type="password" name="go_organic_connect_password" id="go_organic_connect_password" class="regular-text" /></td>
+          </tr>
+        </tbody>
+      </table>
+      <?php submit_button('Connect'); ?>
+    </form>
   </div>
   <?php
 }
 
+/**
+ * Generate API Key by calling SEO Gen.
+ */
+function generate_api_key($username, $password) {
+  $api_url = 'https://seo-gen-service-production.up.railway.app/wp-plugin/connect';
+
+  $body = [
+    'username' => $username,
+    'password' => $password
+  ];
+
+  $response = wp_remote_post($api_url, [
+    'body'    => json_encode($body),
+    'headers' => [
+      'Content-Type' => 'application/json'
+    ],
+    'timeout' => 15
+  ]);
+
+  if (is_wp_error($response)) {
+    error_log('API request failed: ' . $response->get_error_message());
+    return false;
+  }
+
+  $status_code = wp_remote_retrieve_response_code($response);
+  $data = wp_remote_retrieve_body($response);
+  
+  return [
+    'status_code' => $status_code,
+    'data' => $data
+  ];
+}
+
+/**
+ * Check connection using stored API key.
+ */
+function go_organic_check_connection($api_key) {
+  $api_url = 'https://seo-gen-service-production.up.railway.app/wp-plugin/profile';
+
+  $response = wp_remote_get($api_url, [
+    'headers' => [
+      'x-api-key' => $api_key,
+      'Content-Type' => 'application/json'
+    ],
+    'timeout' => 10
+  ]);
+
+  if (is_wp_error($response)) {
+    return false;
+  }
+
+  $status_code = wp_remote_retrieve_response_code($response);
+  return $status_code === 200;
+}
 
 $updateChecker = PucFactory::buildUpdateChecker(
   'https://seo-service.purple-box.app/wp-plugin/metadata',
