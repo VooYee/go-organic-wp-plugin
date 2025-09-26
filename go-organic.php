@@ -9,6 +9,7 @@
 require 'inc/plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
+
 // Prevent direct file access
 if (!defined('ABSPATH')) {
   exit;
@@ -18,7 +19,10 @@ if (!defined('ABSPATH')) {
 require_once __DIR__ . '/inc/config.php';
 require_once plugin_dir_path(__FILE__) . 'inc/api/tracking.php';
 
-/**x`x`
+
+define('GO_ORGANIC_URL', 'https://seo-gen-service.purple-box.app');
+
+/**
  * Bulk-create posts from a REST API request.
  */
 function go_organic_bulk_create_posts($request)
@@ -209,8 +213,9 @@ function render_integration_page()
   // Handle Connect Form
   $connect_message = '';
   if (isset($_POST['go_organic_connect']) && check_admin_referer('go_organic_connect_action', 'go_organic_connect_nonce')) {
-    $input_username = sanitize_text_field($_POST['go_organic_connect_username']);
-    $input_password = sanitize_text_field($_POST['go_organic_connect_password']);
+    // Use the existing username and generated password
+    $input_username = $api_username;
+    $input_password = $stored_password;
 
     if ($input_username && $input_password) {
       $response = generate_api_key($input_username, $input_password);
@@ -221,17 +226,17 @@ function render_integration_page()
           $api_key = $response['data'];
           update_option('go_organic_latest_api_key', $api_key);
           $stored_api_key = $api_key;
-          $connect_message = '<div class="notice notice-success"><p>SEO Gen successfully connected</p></div>';
+          $connect_message = '<div class="notice notice-success"><p>Go/Organic successfully connected</p></div>';
         } else {
           $json_response = json_decode($response['data'], true);
-          $error_message = $json_response['message'];
-          $connect_message = '<div class="notice notice-error"><p>' . $error_message . '</p></div>';
+          $error_message = $json_response['message'] ?? 'Unknown error';
+          $connect_message = '<div class="notice notice-error"><p>' . esc_html($error_message) . '</p></div>';
         }
       } else {
-        $connect_message = '<div class="notice notice-error"><p>Failed fetch API</p></div>';
+        $connect_message = '<div class="notice notice-error"><p>Failed to connect to API</p></div>';
       }
     } else {
-      $connect_message = '<div class="notice notice-error"><p>Username and Password are required</p></div>';
+      $connect_message = '<div class="notice notice-error"><p>Please generate an application password first</p></div>';
     }
 
     echo $connect_message;
@@ -250,21 +255,21 @@ function render_integration_page()
 
     <!-- Connection Status -->
     <?php if ($stored_api_key): ?>
-        <?php if ($is_connected): ?>
-            <div class="notice notice-success">
-                <p>
-                  <strong>Connection Status : </strong>
-                  <span style="color: green; font-size: 1.2em;">&#x2714;</span>
-                </p>
-            </div>
-        <?php else: ?>
-            <div class="notice notice-error">
-                <p>
-                  <strong>Connection Status : </strong>
-                  <span style="color: red; font-size: 1.2em;">&#x2716;</span>
-                </p>
-            </div>
-        <?php endif; ?>
+      <?php if ($is_connected): ?>
+        <div class="notice notice-success">
+          <p>
+            <strong>Connection Status : </strong>
+            <span style="color: green; font-size: 1.2em;">&#x2714;</span>
+          </p>
+        </div>
+      <?php else: ?>
+        <div class="notice notice-error">
+          <p>
+            <strong>Connection Status : </strong>
+            <span style="color: red; font-size: 1.2em;">&#x2716;</span>
+          </p>
+        </div>
+      <?php endif; ?>
     <?php endif; ?>
 
     <table class="form-table">
@@ -299,35 +304,20 @@ function render_integration_page()
       <?php submit_button('Generate New Application Password'); ?>
     </form>
 
-    <!-- Test Stored Password Form -->
-    <form method="post" action="" style="margin-top:20px;">
-      <?php wp_nonce_field('seo_gen_test_password_action', 'seo_gen_nonce_test'); ?>
-      <input type="hidden" name="test_password_storage" value="1" />
-      <?php submit_button('Test Password Storage'); ?>
-    </form>
-
     <!-- Connect Header -->
-    <h2 style="margin-top:30px;">Connect to SEO Gen</h2>
-    <p>Enter the credentials that have been registered in SEO Gen</p>
+    <h2 style="margin-top:30px;">Connect to Go/Organic</h2>
+    <?php if ($stored_password): ?>
+      <p>Use the generated credentials above to connect to Go/Organic service.</p>
 
-    <!-- Connect Form -->
-    <form method="post" action="" style="margin-top:20px;">
-      <?php wp_nonce_field('go_organic_connect_action', 'go_organic_connect_nonce'); ?>
-      <input type="hidden" name="go_organic_connect" value="1" />
-      <table class="form-table">
-        <tbody>
-          <tr>
-            <th><label for="go_organic_connect_username">Username</label></th>
-            <td><input type="text" name="go_organic_connect_username" id="go_organic_connect_username" class="regular-text" /></td>
-          </tr>
-          <tr>
-            <th><label for="go_organic_connect_password">Password</label></th>
-            <td><input type="password" name="go_organic_connect_password" id="go_organic_connect_password" class="regular-text" /></td>
-          </tr>
-        </tbody>
-      </table>
-      <?php submit_button('Connect'); ?>
-    </form>
+      <!-- Connect Form -->
+      <form method="post" action="" style="margin-top:20px;">
+        <?php wp_nonce_field('go_organic_connect_action', 'go_organic_connect_nonce'); ?>
+        <input type="hidden" name="go_organic_connect" value="1" />
+        <?php submit_button('Connect to Go/Organic'); ?>
+      </form>
+    <?php else: ?>
+      <p>Please generate an application password first before connecting to Go/Organic.</p>
+    <?php endif; ?>
   </div>
   <?php
 }
@@ -417,7 +407,8 @@ add_action('rest_api_init', function () {
 /**
  * Generate API Key by calling SEO Gen.
  */
-function generate_api_key($username, $password) {
+function generate_api_key($username, $password)
+{
   $api_url = 'https://seo-gen-service-production.up.railway.app/wp-plugin/connect';
 
   $body = [
@@ -426,7 +417,7 @@ function generate_api_key($username, $password) {
   ];
 
   $response = wp_remote_post($api_url, [
-    'body'    => json_encode($body),
+    'body' => json_encode($body),
     'headers' => [
       'Content-Type' => 'application/json'
     ],
@@ -450,9 +441,9 @@ function generate_api_key($username, $password) {
 /**
  * Check connection using stored API key.
  */
-function go_organic_check_connection($api_key) {
-  $api_url = 'https://seo-gen-service-production.up.railway.app/wp-plugin/profile';
-
+function go_organic_check_connection($api_key)
+{
+  $api_url = GO_ORGANIC_URL . '/wp-plugin/profile';
   $response = wp_remote_get($api_url, [
     'headers' => [
       'x-api-key' => $api_key,

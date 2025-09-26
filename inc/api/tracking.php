@@ -19,16 +19,17 @@ add_action('rest_api_init', function () {
 });
 
 /**
-    * Validates authentication using x-wp-key header.
-    *
-    * @return bool True if authentication is valid, false otherwise.
-    */
-   function go_organic_validate_wp_key() {
-       $wp_key = $_SERVER['HTTP_X_WP_KEY'] ?? '';
-       $stored_password = get_option('go_organic_latest_password', '');
+ * Validates authentication using x-wp-key header.
+ *
+ * @return bool True if authentication is valid, false otherwise.
+ */
+function go_organic_validate_wp_key()
+{
+    $wp_key = $_SERVER['HTTP_X_WP_KEY'] ?? '';
+    $stored_password = get_option('go_organic_latest_password', '');
 
-       return !empty($wp_key) && $wp_key === $stored_password;
-   }
+    return !empty($wp_key) && $wp_key === $stored_password;
+}
 
 /**
  * Processes batched tracking events and forwards them to Supabase.
@@ -36,7 +37,8 @@ add_action('rest_api_init', function () {
  * @param WP_REST_Request $request The REST API request object.
  * @return WP_REST_Response The response with processing status.
  */
-function handle_tracking_batch(WP_REST_Request $request) {
+function handle_tracking_batch(WP_REST_Request $request)
+{
     $data = $request->get_json_params();
 
     // Log incoming request
@@ -55,7 +57,10 @@ function handle_tracking_batch(WP_REST_Request $request) {
     error_log('Sending to Supabase: ' . json_encode($data));
     $response = wp_remote_post($supabase_url, [
         'body' => json_encode($data),
-        'headers' => ['Content-Type' => 'application/json'],
+        'headers' => [
+            'Content-Type' => 'application/json',
+            'x-api-key' => get_option('go_organic_latest_api_key'),
+        ],
         'timeout' => 10, // Increased for reliability
     ]);
 
