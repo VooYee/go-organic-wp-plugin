@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Go/Organic WP Plugin
  * Description: A plugin to bulk-create posts via a REST API and manage integration credentials with integrated tracking system.
- * Version: 0.5.0
+ * Version: 0.6.0
  * Author: Purple Box AI
  */
 
