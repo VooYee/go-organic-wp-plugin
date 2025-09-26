@@ -409,7 +409,7 @@ add_action('rest_api_init', function () {
  */
 function generate_api_key($username, $password)
 {
-  $api_url = 'https://seo-gen-service-production.up.railway.app/wp-plugin/connect';
+  $api_url = GO_ORGANIC_URL . '/wp-plugin/connect';
 
   $body = [
     'username' => $username,
