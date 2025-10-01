@@ -6,21 +6,26 @@
  * Author: Purple Box AI
  */
 
+if (!defined('ABSPATH')) {
+  exit;
+}
+define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
+
 require 'inc/plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 
-// Prevent direct file access
-if (!defined('ABSPATH')) {
-  exit;
-}
+$myUpdateChecker = PucFactory::buildUpdateChecker(
+  'https://github.com/VooYee/go-organic-wp-plugin',
+  __FILE__,
+  'go-organic-wp-plugin'
+);
+$myUpdateChecker->setBranch('main');
 
 // Load tracking system configuration and API
 require_once __DIR__ . '/inc/config.php';
 require_once plugin_dir_path(__FILE__) . 'inc/api/tracking.php';
 
-
-define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
 
 /**
  * Bulk-create posts from a REST API request.
@@ -459,9 +464,3 @@ function go_organic_check_connection($api_key)
   $status_code = wp_remote_retrieve_response_code($response);
   return $status_code === 200;
 }
-
-$updateChecker = PucFactory::buildUpdateChecker(
-  'https://seo-service.purple-box.app/wp-plugin/metadata',
-  __FILE__,
-  'go-organic-wp-plugin'
-);
