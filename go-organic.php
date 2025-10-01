@@ -20,7 +20,7 @@ require_once __DIR__ . '/inc/config.php';
 require_once plugin_dir_path(__FILE__) . 'inc/api/tracking.php';
 
 
-define('GO_ORGANIC_URL', 'https://seo-gen-service.purple-box.app');
+define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
 
 /**
  * Bulk-create posts from a REST API request.
