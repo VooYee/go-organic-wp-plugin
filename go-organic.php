@@ -14,13 +14,11 @@ define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
 require 'inc/plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
-
-$myUpdateChecker = PucFactory::buildUpdateChecker(
-  'https://github.com/VooYee/go-organic-wp-plugin',
+$updateChecker = PucFactory::buildUpdateChecker(
+  GO_ORGANIC_URL . '/wp-plugin/metadata',
   __FILE__,
   'go-organic-wp-plugin'
 );
-$myUpdateChecker->setBranch('main');
 
 // Load tracking system configuration and API
 require_once __DIR__ . '/inc/config.php';
