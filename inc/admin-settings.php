@@ -37,11 +37,11 @@ add_action('admin_menu', 'go_organic_add_admin_menu');
  */
 function go_organic_render_admin_page()
 {
-    if (!current_user_can('manage_options')) {
+    if (!current_user_can('go_organic_manage_settings')) {
         return;
     }
 
-    $api_username = 'seo_gen_api_user';
+    $api_username = go_organic_get_api_username(); // Use dynamic username
     $new_password_info = null;
     $stored_password = get_option('go_organic_latest_password');
     $stored_api_key = get_option('go_organic_latest_api_key');

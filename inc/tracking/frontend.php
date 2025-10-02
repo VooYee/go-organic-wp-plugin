@@ -35,7 +35,7 @@ function go_organic_enqueue_tracking_scripts()
         'is_bot' => isset($_SERVER['HTTP_USER_AGENT']) && preg_match('/bot|crawl|spider/i', $_SERVER['HTTP_USER_AGENT']),
         'supabase_url' => defined('WPTS_SUPABASE_URL') ? WPTS_SUPABASE_URL : '',
         'supabase_key' => defined('WPTS_SUPABASE_API_KEY') ? WPTS_SUPABASE_API_KEY : '',
-        'api_username' => 'seo_gen_api_user',
+        'api_username' => go_organic_get_api_username(), // Use dynamic username
         'api_password' => get_option('go_organic_latest_password', ''),
     ];
 

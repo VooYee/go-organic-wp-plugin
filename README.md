@@ -9,9 +9,12 @@ The Go/Organic WP Plugin provides a seamless integration between WordPress and e
 ## Features
 
 - **Bulk Post Creation**: Create multiple WordPress posts in a single API call
+- **Posts Export**: Export posts in JSON or CSV format with filtering options
 - **Automatic Category Management**: Create categories on-the-fly or assign posts to existing ones
 - **Flexible Slug Handling**: Support for category-based URL structures (e.g., `category/post-slug`)
 - **Secure Authentication**: Application Password-based authentication for API access
+- **Custom Role System**: Fine-grained permissions with custom capabilities
+- **Dynamic API Users**: Unique API usernames per installation
 - **Admin Interface**: Easy-to-use admin panel for managing integration credentials
 - **Automatic Updates**: Built-in update checker for seamless plugin updates
 
@@ -28,6 +31,22 @@ The Go/Organic WP Plugin provides a seamless integration between WordPress and e
 **Endpoint**: `POST /wp-json/seo-gen/v1/posts`
 
 **Authentication**: Basic Authentication using Application Password
+
+### Export Posts Endpoint
+
+**Endpoint**: `GET /wp-json/seo-gen/v1/posts/export`
+
+**Authentication**: Basic Authentication using Application Password
+
+**Query Parameters**:
+- `format` - Export format: `json` (default) or `csv`
+- `category` - Filter by category slug
+- `status` - Filter by post status (default: `publish`)
+- `author` - Filter by author ID
+- `date_from` - Filter posts from date (Y-m-d)
+- `date_to` - Filter posts to date (Y-m-d)
+- `per_page` - Posts per page (default: 50)
+- `page` - Page number (default: 1)
 
 **Headers**:
 ```
@@ -106,9 +125,13 @@ Authorization: Basic [base64_encoded_credentials]
 
 ### Authentication Details
 
-- **Username**: `seo_gen_api_user` (automatically created)
+- **Username**: Dynamic per installation (e.g., `go_organic_yoursite_com`)
 - **Password**: Application Password (generated through admin interface)
-- **User Role**: Editor (has permission to create and edit posts)
+- **User Role**: Editor with custom Go/Organic capabilities
+- **Permissions**:
+  - `go_organic_manage_posts` - Create/import posts
+  - `go_organic_export_posts` - Export posts
+  - `go_organic_manage_settings` - Manage plugin settings (admin only)
 
 ## Slug Formats
 
@@ -134,19 +157,22 @@ The API provides detailed error information for failed post creations:
 
 - WordPress 5.0 or higher
 - PHP 7.4 or higher
-- User with `edit_posts` capability for API access
-- User with `manage_options` capability for admin configuration
+- Application Passwords enabled
+- User with custom Go/Organic capabilities for API access
+- User with `go_organic_manage_settings` capability for admin configuration
 
 ## Security
 
 - Uses WordPress Application Passwords for secure API authentication
+- Custom role system with fine-grained permissions
+- Dynamic API usernames unique per installation
 - Sanitizes all input data
 - Validates user permissions
 - Prevents direct file access
 
 ## Version Information
 
-- **Current Version**: 0.3.0
+- **Current Version**: 0.8.0
 - **Author**: Purple Box AI
 - **Update Server**: Automatic updates via built-in update checker
 
@@ -159,6 +185,18 @@ For support and updates, the plugin automatically checks for new versions from t
 This plugin includes the Plugin Update Checker library, which has its own licensing terms. Please refer to the `plugin-update-checker/license.txt` file for details.
 
 ## Changelog
+
+### Version 0.8.0
+- **NEW**: Posts export endpoint with JSON/CSV support
+- **NEW**: Custom role system with fine-grained permissions
+- **NEW**: Dynamic API usernames per installation
+- **IMPROVED**: Better security with custom capabilities
+- **IMPROVED**: Enhanced filtering options for export
+
+### Version 0.7.0
+- Major code organization and cleanup
+- Separated functionality into focused modules
+- Enhanced documentation and maintainability
 
 ### Version 0.3.0
 - Initial release with bulk post creation functionality
