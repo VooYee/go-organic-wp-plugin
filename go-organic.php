@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Go/Organic WP Plugin
  * Description: A plugin to bulk-create posts via a REST API and manage integration credentials with integrated tracking system.
- * Version: 0.8.0
+ * Version: 0.9.0
  * Author: Purple Box AI
  */
 
@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
 
 // Define plugin constants
 define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
-define('GO_ORGANIC_VERSION', '0.8.0');
+define('GO_ORGANIC_VERSION', '0.9.0');
 define('GO_ORGANIC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GO_ORGANIC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
