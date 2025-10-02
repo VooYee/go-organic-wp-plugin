@@ -254,38 +254,84 @@ function go_organic_export_posts_csv($posts, $meta)
     // CSV headers
     $headers = ['id', 'title', 'content', 'slug', 'excerpt', 'status', 'date', 'author', 'author_name', 'category', 'categories', 'url', 'comment_status', 'ping_status'];
 
-    // Create CSV content
-    $csv_content = implode(',', $headers) . "\n";
+    // Start building CSV content
+    $csv_lines = [];
+
+    // Add header row (don't escape headers, they're safe)
+    $csv_lines[] = implode(',', $headers);
 
     foreach ($posts as $post) {
         $row = [];
         foreach ($headers as $header) {
             $value = $post[$header] ?? '';
+
             // Handle arrays (categories)
             if (is_array($value)) {
                 $value = implode(';', $value);
             }
-            // Escape CSV values
-            $value = str_replace('"', '""', $value);
-            if (strpos($value, ',') !== false || strpos($value, '"') !== false || strpos($value, "\n") !== false) {
-                $value = '"' . $value . '"';
+
+            // Clean content - remove HTML tags and normalize whitespace
+            if ($header === 'content') {
+                $value = strip_tags($value);
+                $value = preg_replace('/\s+/', ' ', $value);
+                $value = trim($value);
+                // Truncate very long content
+                if (strlen($value) > 500) {
+                    $value = substr($value, 0, 500) . '...';
+                }
             }
-            $row[] = $value;
+
+            // Clean excerpt
+            if ($header === 'excerpt') {
+                $value = strip_tags($value);
+                $value = preg_replace('/\s+/', ' ', $value);
+                $value = trim($value);
+            }
+
+            // Escape the field for CSV
+            $row[] = go_organic_escape_csv_field($value);
         }
-        $csv_content .= implode(',', $row) . "\n";
+        $csv_lines[] = implode(',', $row);
     }
 
-    // Return CSV response
-    $response = new WP_REST_Response($csv_content, 200);
-    $response->set_headers([
-        'Content-Type' => 'text/csv; charset=utf-8',
-        'Content-Disposition' => 'attachment; filename="posts-export-' . date('Y-m-d-H-i-s') . '.csv"'
-    ]);
+    // Join all lines with proper line breaks
+    $csv_content = implode("\r\n", $csv_lines);
 
-    return $response;
+    // Output CSV directly to avoid JSON encoding
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="posts-export-' . date('Y-m-d-H-i-s') . '.csv"');
+    header('Content-Length: ' . strlen($csv_content));
+    header('Cache-Control: no-cache, must-revalidate');
+    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+
+    // Output the CSV content directly
+    echo $csv_content;
+    exit; // Important: exit to prevent WordPress from adding extra content
 }
 
 /**
+ * Properly escape a field for CSV output.
+ *
+ * @param string $field The field value to escape.
+ * @return string The escaped field value.
+ */
+function go_organic_escape_csv_field($field)
+{
+    // Convert to string and handle null values
+    $field = (string) $field;
+
+    // Remove null bytes and normalize line endings
+    $field = str_replace(["\0", "\r\n", "\r", "\n"], ['', ' ', ' ', ' '], $field);
+
+    // If field contains comma, quote, or needs quoting, wrap in quotes
+    if (strpos($field, ',') !== false || strpos($field, '"') !== false || strpos($field, ' ') === 0 || substr($field, -1) === ' ') {
+        // Escape internal quotes by doubling them
+        $field = str_replace('"', '""', $field);
+        $field = '"' . $field . '"';
+    }
+
+    return $field;
+}/**
  * Get the dynamic API username for this installation.
  *
  * @return string The API username.
