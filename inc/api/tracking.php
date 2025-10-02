@@ -1,35 +1,31 @@
 <?php
+/**
+ * Tracking Batch API Handler
+ * Handles batch tracking events and forwards them to external services
+ *
+ * @package Go_Organic_WP_Plugin
+ * @since 0.7.0
+ */
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
 /**
- * Registers and handles the tracking batch endpoint.
+ * Register the tracking batch REST API route.
  *
- * @package WP_Tracking_System
+ * @return void
  */
-
-add_action('rest_api_init', function () {
+function go_organic_register_tracking_batch_api()
+{
     register_rest_route('tracking/v1', '/batch', [
         'methods' => 'POST',
-        'callback' => 'handle_tracking_batch',
+        'callback' => 'go_organic_handle_tracking_batch',
         'permission_callback' => 'go_organic_validate_wp_key',
     ]);
     error_log('Tracking route /batch registered');
-});
-
-/**
- * Validates authentication using x-wp-key header.
- *
- * @return bool True if authentication is valid, false otherwise.
- */
-function go_organic_validate_wp_key()
-{
-    $wp_key = $_SERVER['HTTP_X_WP_KEY'] ?? '';
-    $stored_password = get_option('go_organic_latest_password', '');
-
-    return !empty($wp_key) && $wp_key === $stored_password;
 }
+add_action('rest_api_init', 'go_organic_register_tracking_batch_api');
 
 /**
  * Processes batched tracking events and forwards them to Supabase.
@@ -37,7 +33,7 @@ function go_organic_validate_wp_key()
  * @param WP_REST_Request $request The REST API request object.
  * @return WP_REST_Response The response with processing status.
  */
-function handle_tracking_batch(WP_REST_Request $request)
+function go_organic_handle_tracking_batch(WP_REST_Request $request)
 {
     $data = $request->get_json_params();
 
@@ -61,7 +57,7 @@ function handle_tracking_batch(WP_REST_Request $request)
             'Content-Type' => 'application/json',
             'x-api-key' => get_option('go_organic_latest_api_key'),
         ],
-        'timeout' => 10, // Increased for reliability
+        'timeout' => 10,
     ]);
 
     // Log and handle response
