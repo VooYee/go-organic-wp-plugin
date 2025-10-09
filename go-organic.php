@@ -55,18 +55,62 @@ require_once GO_ORGANIC_PLUGIN_DIR . 'inc/tracking/frontend.php';
  * Register SEO and Schema markup meta fields for posts
  * Compatible with PHP 7.0+
  */
-function go_organic_register_post_meta()
-{
-    $meta_fields = ['_seo_title', '_seo_description', '_schema_markup'];
-
-    foreach ($meta_fields as $key) {
-        register_post_meta('post', $key, array(
-            'type' => 'string',
-            'single' => true,
-            'show_in_rest' => true,
+function go_organic_register_post_meta() {
+    $meta_fields = array(
+        '_seo_title'                => array(
+            'type'              => 'string',
             'sanitize_callback' => 'sanitize_text_field',
-            'auth_callback' => 'go_organic_meta_auth_callback',
-        ));
+        ),
+        '_seo_description'          => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ),
+        '_schema_markup'            => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'go_organic_sanitize_schema_markup',
+        ),
+        '_yoast_wpseo_title'        => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ),
+        'yoast_wpseo_title'         => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ),
+        '_yoast_wpseo_metadesc'     => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ),
+        'yoast_wpseo_metadesc'      => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ),
+        '_yoast_wpseo_schema_graph' => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'go_organic_sanitize_schema_markup',
+        ),
+        'yoast_wpseo_schema_graph'  => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'go_organic_sanitize_schema_markup',
+        ),
+    );
+
+    $post_types = array('post', 'page', 'product');
+
+    foreach ($post_types as $post_type) {
+        foreach ($meta_fields as $key => $args) {
+            register_post_meta(
+                $post_type,
+                $key,
+                array(
+                    'type'              => $args['type'],
+                    'single'            => true,
+                    'show_in_rest'      => true,
+                    'sanitize_callback' => $args['sanitize_callback'],
+                    'auth_callback'     => 'go_organic_meta_auth_callback',
+                )
+            );
+        }
     }
 }
 
@@ -80,6 +124,94 @@ function go_organic_meta_auth_callback()
 }
 
 add_action('init', 'go_organic_register_post_meta');
+
+/**
+ * Sanitize schema markup values while preserving valid JSON.
+ *
+ * @param mixed $value Raw value from the request.
+ * @return string Sanitized schema markup.
+ */
+function go_organic_sanitize_schema_markup($value) {
+    if (is_array($value)) {
+        $value = wp_json_encode($value);
+    }
+
+    if (!is_string($value)) {
+        return '';
+    }
+
+    $value = wp_unslash($value);
+
+    $decoded = json_decode($value, true);
+    if (json_last_error() === JSON_ERROR_NONE) {
+        // Re-encode to ensure consistent formatting.
+        return wp_json_encode($decoded);
+    }
+
+    // Fall back to a safe sanitized string if JSON is invalid.
+    return sanitize_textarea_field($value);
+}
+
+/**
+ * Sync SEO Gen custom meta fields into Yoast SEO meta keys.
+ *
+ * @param int    $meta_id    The meta key ID.
+ * @param int    $post_id    The post ID.
+ * @param string $meta_key   The meta key being added/updated.
+ * @param mixed  $meta_value The meta value.
+ */
+function go_organic_sync_meta_to_yoast($meta_id, $post_id, $meta_key, $meta_value) {
+    static $is_syncing = false;
+
+    if ($is_syncing) {
+        return;
+    }
+
+    $map = array(
+        '_seo_title'        => array('_yoast_wpseo_title', 'yoast_wpseo_title'),
+        '_seo_description'  => array('_yoast_wpseo_metadesc', 'yoast_wpseo_metadesc'),
+        '_schema_markup'    => array('_yoast_wpseo_schema_graph', 'yoast_wpseo_schema_graph'),
+    );
+
+    if (!array_key_exists($meta_key, $map)) {
+        return;
+    }
+
+    $is_syncing = true;
+
+    foreach ($map[$meta_key] as $target_key) {
+        update_post_meta($post_id, $target_key, $meta_value);
+    }
+
+    $is_syncing = false;
+}
+add_action('added_post_meta', 'go_organic_sync_meta_to_yoast', 10, 4);
+add_action('updated_post_meta', 'go_organic_sync_meta_to_yoast', 10, 4);
+
+/**
+ * Remove synced Yoast meta keys when the source SEO meta is deleted.
+ *
+ * @param array  $meta_ids   Deleted meta IDs.
+ * @param int    $post_id    Post ID.
+ * @param string $meta_key   Meta key deleted.
+ * @param mixed  $_meta_value Meta value.
+ */
+function go_organic_cleanup_synced_meta($meta_ids, $post_id, $meta_key, $_meta_value) {
+    $map = array(
+        '_seo_title'       => array('_yoast_wpseo_title', 'yoast_wpseo_title'),
+        '_seo_description' => array('_yoast_wpseo_metadesc', 'yoast_wpseo_metadesc'),
+        '_schema_markup'   => array('_yoast_wpseo_schema_graph', 'yoast_wpseo_schema_graph'),
+    );
+
+    if (!array_key_exists($meta_key, $map)) {
+        return;
+    }
+
+    foreach ($map[$meta_key] as $target_key) {
+        delete_post_meta($post_id, $target_key);
+    }
+}
+add_action('deleted_post_meta', 'go_organic_cleanup_synced_meta', 10, 4);
 
 /**
  * Get SEO title for a post with fallback to regular title
