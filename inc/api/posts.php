@@ -731,7 +731,101 @@ function go_organic_register_posts_api()
         'callback' => 'go_organic_bulk_create_posts',
         'permission_callback' => function () {
             return current_user_can('go_organic_manage_posts');
-        }
+        },
+        'args' => [
+            'posts' => [
+                'description' => 'Array of posts to create with SEO metadata',
+                'type' => 'array',
+                'required' => true,
+                'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'id' => [
+                            'description' => 'Unique source identifier for the post',
+                            'type' => 'string'
+                        ],
+                        'title' => [
+                            'description' => 'Post title',
+                            'type' => 'string',
+                            'required' => true
+                        ],
+                        'content' => [
+                            'description' => 'Post content (HTML allowed)',
+                            'type' => 'string'
+                        ],
+                        'slug' => [
+                            'description' => 'Post slug. Format: "category/post-slug" or "post-slug"',
+                            'type' => 'string',
+                            'required' => true
+                        ],
+                        'excerpt' => [
+                            'description' => 'Post excerpt',
+                            'type' => 'string'
+                        ],
+                        'status' => [
+                            'description' => 'Post status',
+                            'type' => 'string',
+                            'enum' => ['publish', 'draft', 'private', 'pending'],
+                            'default' => 'publish'
+                        ],
+                        'date' => [
+                            'description' => 'Post publication date (Y-m-d H:i:s format)',
+                            'type' => 'string',
+                            'format' => 'date-time'
+                        ],
+                        'author' => [
+                            'description' => 'Author ID',
+                            'type' => 'integer'
+                        ],
+                        'comment_status' => [
+                            'description' => 'Comment status',
+                            'type' => 'string',
+                            'enum' => ['open', 'closed'],
+                            'default' => 'open'
+                        ],
+                        'ping_status' => [
+                            'description' => 'Ping status',
+                            'type' => 'string',
+                            'enum' => ['open', 'closed'],
+                            'default' => 'closed'
+                        ],
+                        'seo_title' => [
+                            'description' => 'SEO title (will be set in active SEO plugins)',
+                            'type' => 'string'
+                        ],
+                        'seo_description' => [
+                            'description' => 'SEO meta description (will be set in active SEO plugins)',
+                            'type' => 'string'
+                        ],
+                        'seo_slug' => [
+                            'description' => 'SEO focus keyword/slug for SEO plugins',
+                            'type' => 'string'
+                        ],
+                        'schema_markup' => [
+                            'description' => 'JSON-LD Schema markup (object or JSON string)',
+                            'oneOf' => [
+                                ['type' => 'object'],
+                                ['type' => 'string']
+                            ]
+                        ]
+                    ]
+                ],
+                'validate_callback' => function($param, $request, $key) {
+                    if (!is_array($param)) {
+                        return new WP_Error('invalid_posts', 'Posts parameter must be an array');
+                    }
+                    foreach ($param as $index => $post) {
+                        if (!is_array($post)) {
+                            return new WP_Error('invalid_post', "Post at index $index must be an object");
+                        }
+                        if (empty($post['title']) || empty($post['slug'])) {
+                            return new WP_Error('missing_required', "Post at index $index is missing required title or slug");
+                        }
+                    }
+                    return true;
+                }
+            ]
+        ]
     ]);
 
     // Export posts endpoint
@@ -804,7 +898,48 @@ function go_organic_register_posts_api()
         },
         'permission_callback' => function () {
             return current_user_can('go_organic_manage_posts');
-        }
+        },
+        'args' => [],
+        'schema' => [
+            '$schema' => 'http://json-schema.org/draft-04/schema#',
+            'title' => 'SEO Plugins Information',
+            'type' => 'object',
+            'properties' => [
+                'active_plugins' => [
+                    'description' => 'Information about active SEO plugins',
+                    'type' => 'object',
+                    'additionalProperties' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'name' => ['type' => 'string'],
+                            'version' => ['type' => 'string'],
+                            'supported_fields' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string']
+                            ],
+                            'meta_keys' => [
+                                'type' => 'object',
+                                'additionalProperties' => ['type' => 'string']
+                            ]
+                        ]
+                    ]
+                ],
+                'plugin_count' => [
+                    'description' => 'Number of active SEO plugins',
+                    'type' => 'integer'
+                ],
+                'supported_features' => [
+                    'description' => 'Summary of supported SEO features',
+                    'type' => 'object',
+                    'properties' => [
+                        'title_optimization' => ['type' => 'boolean'],
+                        'meta_description' => ['type' => 'boolean'],
+                        'focus_keywords' => ['type' => 'boolean'],
+                        'schema_markup' => ['type' => 'boolean']
+                    ]
+                ]
+            ]
+        ]
     ]);
 }
 add_action('rest_api_init', 'go_organic_register_posts_api');
