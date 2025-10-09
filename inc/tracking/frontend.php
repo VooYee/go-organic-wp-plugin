@@ -39,6 +39,9 @@ function go_organic_enqueue_tracking_scripts()
         'api_password' => get_option('go_organic_latest_password', ''),
     ];
 
+    // Add SEO meta data to tracker metadata
+    $tracker_meta = go_organic_add_seo_to_tracker_meta($tracker_meta);
+
     wp_localize_script('tracking-system-js', 'TrackerMeta', $tracker_meta);
 }
 add_action('wp_enqueue_scripts', 'go_organic_enqueue_tracking_scripts');
@@ -94,3 +97,62 @@ function go_organic_register_tracking_api()
     ]);
 }
 add_action('rest_api_init', 'go_organic_register_tracking_api');
+
+/**
+ * Output SEO meta tags and schema markup in the document head
+ *
+ * @return void
+ */
+function go_organic_output_seo_meta()
+{
+    if (!is_singular()) {
+        return;
+    }
+
+    $post_id = get_the_ID();
+    if (!$post_id) {
+        return;
+    }
+
+    // Output SEO title
+    $seo_title = go_organic_get_seo_title($post_id);
+    if (!empty($seo_title) && $seo_title !== get_the_title($post_id)) {
+        echo '<meta property="og:title" content="' . esc_attr($seo_title) . '">' . "\n";
+        echo '<meta name="twitter:title" content="' . esc_attr($seo_title) . '">' . "\n";
+    }
+
+    // Output SEO description
+    $seo_description = go_organic_get_seo_description($post_id);
+    if (!empty($seo_description)) {
+        echo '<meta name="description" content="' . esc_attr($seo_description) . '">' . "\n";
+        echo '<meta property="og:description" content="' . esc_attr($seo_description) . '">' . "\n";
+        echo '<meta name="twitter:description" content="' . esc_attr($seo_description) . '">' . "\n";
+    }
+
+    // Output schema markup
+    $schema_markup = go_organic_get_schema_markup($post_id);
+    if (!empty($schema_markup)) {
+        echo '<script type="application/ld+json">' . "\n";
+        echo wp_json_encode($schema_markup, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        echo "\n" . '</script>' . "\n";
+    }
+}
+add_action('wp_head', 'go_organic_output_seo_meta');
+
+/**
+ * Add SEO meta data to the tracking metadata
+ *
+ * @param array $tracker_meta Existing tracker metadata
+ * @return array Modified tracker metadata
+ */
+function go_organic_add_seo_to_tracker_meta($tracker_meta)
+{
+    $post_id = get_the_ID();
+    if ($post_id) {
+        $tracker_meta['seo_title'] = go_organic_get_seo_title($post_id);
+        $tracker_meta['seo_description'] = go_organic_get_seo_description($post_id);
+        $tracker_meta['has_schema_markup'] = !empty(go_organic_get_schema_markup($post_id));
+    }
+    
+    return $tracker_meta;
+}
