@@ -34,10 +34,12 @@ require_once GO_ORGANIC_PLUGIN_DIR . 'inc/plugin-update-checker/plugin-update-ch
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 $updateChecker = PucFactory::buildUpdateChecker(
-    GO_ORGANIC_URL . '/wp-plugin/metadata',
+    'https://github.com/VooYee/go-organic-wp-plugin/',
     __FILE__,
     'go-organic-wp-plugin'
 );
+$updateChecker->setBranch('main');
+
 
 // Load plugin configuration
 require_once GO_ORGANIC_PLUGIN_DIR . 'inc/config.php';
@@ -53,16 +55,17 @@ require_once GO_ORGANIC_PLUGIN_DIR . 'inc/tracking/frontend.php';
  * Register SEO and Schema markup meta fields for posts
  * Compatible with PHP 7.0+
  */
-function go_organic_register_post_meta() {
+function go_organic_register_post_meta()
+{
     $meta_fields = ['_seo_title', '_seo_description', '_schema_markup'];
 
     foreach ($meta_fields as $key) {
         register_post_meta('post', $key, array(
-            'type'              => 'string',
-            'single'            => true,
-            'show_in_rest'      => true,
+            'type' => 'string',
+            'single' => true,
+            'show_in_rest' => true,
             'sanitize_callback' => 'sanitize_text_field',
-            'auth_callback'     => 'go_organic_meta_auth_callback',
+            'auth_callback' => 'go_organic_meta_auth_callback',
         ));
     }
 }
@@ -71,7 +74,8 @@ function go_organic_register_post_meta() {
  * Authorization callback for meta fields
  * @return bool
  */
-function go_organic_meta_auth_callback() {
+function go_organic_meta_auth_callback()
+{
     return current_user_can('edit_posts');
 }
 
@@ -82,7 +86,8 @@ add_action('init', 'go_organic_register_post_meta');
  * @param int $post_id Post ID, defaults to current post
  * @return string
  */
-function go_organic_get_seo_title($post_id = null) {
+function go_organic_get_seo_title($post_id = null)
+{
     if (!$post_id) {
         $post_id = get_the_ID();
     }
@@ -96,7 +101,8 @@ function go_organic_get_seo_title($post_id = null) {
  * @param int $post_id Post ID, defaults to current post
  * @return string
  */
-function go_organic_get_seo_description($post_id = null) {
+function go_organic_get_seo_description($post_id = null)
+{
     if (!$post_id) {
         $post_id = get_the_ID();
     }
@@ -123,7 +129,8 @@ function go_organic_get_seo_description($post_id = null) {
  * @param int $post_id Post ID, defaults to current post
  * @return array|null Decoded schema markup or null
  */
-function go_organic_get_schema_markup($post_id = null) {
+function go_organic_get_schema_markup($post_id = null)
+{
     if (!$post_id) {
         $post_id = get_the_ID();
     }
@@ -143,7 +150,8 @@ function go_organic_get_schema_markup($post_id = null) {
  * @param string $title SEO title
  * @return bool
  */
-function go_organic_set_seo_title($post_id, $title) {
+function go_organic_set_seo_title($post_id, $title)
+{
     // Store in internal meta field
     $result = update_post_meta($post_id, '_seo_title', sanitize_text_field($title));
 
@@ -161,7 +169,8 @@ function go_organic_set_seo_title($post_id, $title) {
  * @param string $description SEO description
  * @return bool
  */
-function go_organic_set_seo_description($post_id, $description) {
+function go_organic_set_seo_description($post_id, $description)
+{
     // Store in internal meta field
     $result = update_post_meta($post_id, '_seo_description', sanitize_text_field($description));
 
@@ -179,7 +188,8 @@ function go_organic_set_seo_description($post_id, $description) {
  * @param array|string $schema_data Schema markup data
  * @return bool
  */
-function go_organic_set_schema_markup($post_id, $schema_data) {
+function go_organic_set_schema_markup($post_id, $schema_data)
+{
     if (is_array($schema_data)) {
         $schema_data = wp_json_encode($schema_data);
     }
