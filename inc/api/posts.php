@@ -111,6 +111,26 @@ function go_organic_bulk_create_posts($request)
         $post_id = wp_insert_post($post_data);
 
         if (!is_wp_error($post_id)) {
+            // Handle SEO meta fields if provided
+            if (!empty($item['seo_title'])) {
+                update_post_meta($post_id, '_seo_title', sanitize_text_field($item['seo_title']));
+            }
+            if (!empty($item['seo_description'])) {
+                update_post_meta($post_id, '_seo_description', sanitize_text_field($item['seo_description']));
+            }
+            if (!empty($item['schema_markup'])) {
+                // Validate JSON for schema markup
+                $schema_data = $item['schema_markup'];
+                if (is_string($schema_data)) {
+                    $decoded = json_decode($schema_data, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        update_post_meta($post_id, '_schema_markup', $schema_data);
+                    }
+                } elseif (is_array($schema_data)) {
+                    update_post_meta($post_id, '_schema_markup', wp_json_encode($schema_data));
+                }
+            }
+
             $created[] = [
                 'new_id' => $post_id,
                 'source_id' => $source_id,
@@ -211,7 +231,11 @@ function go_organic_export_posts($request)
                 'categories' => array_map(function($cat) { return $cat->name; }, $categories),
                 'url' => get_permalink(),
                 'comment_status' => get_comments_number() > 0 ? 'open' : 'closed',
-                'ping_status' => 'closed'
+                'ping_status' => 'closed',
+                // SEO and schema meta fields
+                'seo_title' => get_post_meta($post_id, '_seo_title', true),
+                'seo_description' => get_post_meta($post_id, '_seo_description', true),
+                'schema_markup' => get_post_meta($post_id, '_schema_markup', true)
             ];
 
             $posts[] = $post_data;
@@ -252,7 +276,7 @@ function go_organic_export_posts_csv($posts, $meta)
     }
 
     // CSV headers
-    $headers = ['id', 'title', 'content', 'slug', 'excerpt', 'status', 'date', 'author', 'author_name', 'category', 'categories', 'url', 'comment_status', 'ping_status'];
+    $headers = ['id', 'title', 'content', 'slug', 'excerpt', 'status', 'date', 'author', 'author_name', 'category', 'categories', 'url', 'comment_status', 'ping_status', 'seo_title', 'seo_description', 'schema_markup'];
 
     // Start building CSV content
     $csv_lines = [];
