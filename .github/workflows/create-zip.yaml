@@ -1,0 +1,53 @@
+name: Create WP plugin ZIP on release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-upload-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set ZIP name and plugin slug
+        run: |
+          echo "PLUGIN_SLUG=${{ github.event.repository.name }}" >> $GITHUB_ENV
+          echo "ZIP_NAME=${{ github.event.repository.name }}-${{ github.event.release.tag_name }}.zip" >> $GITHUB_ENV
+
+      - name: install dependencies & build (npm/composer)
+        run: |
+          # If you have frontend build steps:
+          if [ -f package.json ]; then
+            npm ci
+            # run build if present; if not, continue
+            if npm run | grep -q ' build'; then npm run build || true; fi
+          fi
+          # If you use composer for PHP dependencies (rare for WP plugins, but included)
+          if [ -f composer.json ]; then
+            composer install --no-dev --no-interaction || true
+          fi
+
+      - name: Clean workspace (optional)
+        run: |
+          # Remove git metadata and CI files from zip
+          rm -rf .git
+          # remove dev folders if present (customize to your repo)
+          rm -rf .github tests .vscode
+
+      - name: Create ZIP of plugin
+        run: |
+          # Create zip excluding common dev files — edit exclusions as needed
+          zip -r "$ZIP_NAME" . -x "node_modules/*" ".github/*" "tests/*" ".git/*" "vendor/*" "*.map" "*.zip"
+          ls -lh "$ZIP_NAME"
+
+      - name: Upload ZIP as release asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ github.workspace }}/$ZIP_NAME
+          asset_name: ${{ env.ZIP_NAME }}
+          asset_content_type: application/zip
