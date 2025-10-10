@@ -11,17 +11,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set env vars
+      - name: Set environment variables
         run: |
           PLUGIN_SLUG=${{ github.event.repository.name }}
           ZIP_NAME="${PLUGIN_SLUG}-${{ github.event.release.tag_name }}.zip"
           echo "PLUGIN_SLUG=$PLUGIN_SLUG" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: Install dependencies
+      - name: Build dependencies
         run: |
           if [ -f package.json ]; then
             npm ci
@@ -31,25 +29,24 @@ jobs:
             composer install --no-dev --no-interaction || true
           fi
 
-      - name: Prepare plugin folder for ZIP
+      - name: Prepare build directory
         run: |
           mkdir -p build/${{ env.PLUGIN_SLUG }}
           rsync -av --exclude="build" --exclude=".git*" --exclude="node_modules" \
           --exclude=".github" --exclude="tests" --exclude="*.zip" ./ build/${{ env.PLUGIN_SLUG }}/
-          cd build
+
+      - name: Create ZIP
+        working-directory: build
+        run: |
           zip -r "${{ env.ZIP_NAME }}" "${{ env.PLUGIN_SLUG }}"
           mv "${{ env.ZIP_NAME }}" ../
-          cd ..
-          ls -lh "${{ env.ZIP_NAME }}"
+          ls -lh ../
 
       - name: Verify ZIP exists
         run: |
-          if [ ! -f "${{ env.ZIP_NAME }}" ]; then
-            echo "❌ ZIP not found!"
-            exit 1
-          fi
-          echo "✅ Found ZIP file:"
-          ls -lh "${{ env.ZIP_NAME }}"
+          echo "Listing files:"
+          ls -lh
+          test -f "${{ env.ZIP_NAME }}"
 
       - name: Upload ZIP to release
         uses: actions/upload-release-asset@v1
