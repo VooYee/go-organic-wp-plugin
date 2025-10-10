@@ -48,12 +48,10 @@ jobs:
           echo "✅ Checking ZIP:"
           ls -lh "${{ env.ZIP_NAME }}" || (echo "❌ ZIP not found!" && exit 1)
 
-      - name: Upload ZIP to release
-        env:
-          ZIP_PATH: ${{ env.ZIP_PATH }}
-        run: |
-          echo "Uploading $ZIP_PATH"
-          gh release upload "${{ github.event.release.tag_name }}" "$ZIP_PATH" --clobber
-        shell: bash
+      - name: Upload ZIP to GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ZIP_PATH: ${{ github.workspace }}/${{ env.ZIP_NAME }}
+        run: |
+          echo "Uploading $ZIP_PATH ..."
+          gh release upload "${{ github.event.release.tag_name }}" "$ZIP_PATH" --clobber
