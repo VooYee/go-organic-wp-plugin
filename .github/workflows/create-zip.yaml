@@ -22,7 +22,7 @@ jobs:
         id: vars
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/}"
-          ZIP_NAME="${PLUGIN_SLUG}-${TAG_NAME}.zip"
+          ZIP_NAME="release.zip"
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
           echo "ZIP_PATH=$PWD/$ZIP_NAME" >> $GITHUB_ENV
