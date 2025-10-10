@@ -1,57 +1,43 @@
-name: Create WP plugin ZIP on release
+name: Build WP Plugin ZIP on Release
 
 on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
+env:
+  PLUGIN_SLUG: go-organic-wp-plugin
+
 jobs:
-  build-and-upload-zip:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set environment variables
+      - name: Set up variables
+        id: vars
         run: |
-          PLUGIN_SLUG=${{ github.event.repository.name }}
-          ZIP_NAME="${PLUGIN_SLUG}-${{ github.event.release.tag_name }}.zip"
-          echo "PLUGIN_SLUG=$PLUGIN_SLUG" >> $GITHUB_ENV
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          ZIP_NAME="${PLUGIN_SLUG}-${TAG_NAME}.zip"
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
+          echo "ZIP_PATH=$PWD/$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: build dependencies
+      - name: Create plugin ZIP
         run: |
-          if [ -f package.json ]; then
-            npm ci
-            npm run build || true
-          fi
-          if [ -f composer.json ]; then
-            composer install --no-dev --no-interaction || true
-          fi
+          mkdir -p build
+          zip -r "$ZIP_NAME" . -x ".git*" -x ".github*" -x "node_modules/*"
+          mv "$ZIP_NAME" build/
 
-      - name: Prepare build directory
-        run: |
-          mkdir -p build/${{ env.PLUGIN_SLUG }}
-          rsync -av --exclude="build" --exclude=".git*" --exclude="node_modules" \
-                   --exclude=".github" --exclude="tests" --exclude="*.zip" ./ build/${{ env.PLUGIN_SLUG }}/
+      - name: Install GitHub CLI
+        run: sudo apt-get install -y gh
 
-      - name: Create ZIP
-        working-directory: build
-        run: |
-          zip -r "${{ env.ZIP_NAME }}" "${{ env.PLUGIN_SLUG }}"
-          mv "${{ env.ZIP_NAME }}" ../
-          ls -lh ../
-
-      - name: Verify ZIP exists
-        run: |
-          echo "✅ Checking ZIP:"
-          ls -lh "${{ env.ZIP_NAME }}" || (echo "❌ ZIP not found!" && exit 1)
-
-      - name: Upload ZIP to GitHub Release
+      - name: Upload ZIP to Release (using PAT)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ZIP_PATH: ${{ github.workspace }}/${{ env.ZIP_NAME }}
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
         run: |
-          echo "Uploading $ZIP_PATH ..."
-          gh release upload "${{ github.event.release.tag_name }}" "$ZIP_PATH" --clobber
+          gh release upload "${TAG_NAME}" "build/${ZIP_NAME}" --clobber

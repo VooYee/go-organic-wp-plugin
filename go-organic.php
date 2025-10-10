@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Go/Organic WP Plugin
  * Description: A plugin to bulk-create posts via a REST API with SEO plugin integration (Yoast, RankMath, SEOPress, AIOSEO) and advanced tracking system.
- * Version: 0.9.2
+ * Version: 0.9.6
  * Author: Purple Box AI
  * Requires at least: 5.0
  * Tested up to: 6.4
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 
 // Define plugin constants
 define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
-define('GO_ORGANIC_VERSION', '0.9.2');
+define('GO_ORGANIC_VERSION', '0.9.6');
 define('GO_ORGANIC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GO_ORGANIC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
