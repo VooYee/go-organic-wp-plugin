@@ -18,8 +18,9 @@ jobs:
           ZIP_NAME="${PLUGIN_SLUG}-${{ github.event.release.tag_name }}.zip"
           echo "PLUGIN_SLUG=$PLUGIN_SLUG" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/${ZIP_NAME}" >> $GITHUB_ENV
 
-      - name: Build dependencies
+      - name: build dependencies
         run: |
           if [ -f package.json ]; then
             npm ci
@@ -33,7 +34,7 @@ jobs:
         run: |
           mkdir -p build/${{ env.PLUGIN_SLUG }}
           rsync -av --exclude="build" --exclude=".git*" --exclude="node_modules" \
-          --exclude=".github" --exclude="tests" --exclude="*.zip" ./ build/${{ env.PLUGIN_SLUG }}/
+                   --exclude=".github" --exclude="tests" --exclude="*.zip" ./ build/${{ env.PLUGIN_SLUG }}/
 
       - name: Create ZIP
         working-directory: build
@@ -44,14 +45,15 @@ jobs:
 
       - name: Verify ZIP exists
         run: |
-          echo "Listing files:"
-          ls -lh
-          test -f "${{ env.ZIP_NAME }}"
+          echo "✅ Checking ZIP:"
+          ls -lh "${{ env.ZIP_NAME }}" || (echo "❌ ZIP not found!" && exit 1)
 
       - name: Upload ZIP to release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/${{ env.ZIP_NAME }}
-          asset_name: ${{ env.ZIP_NAME }}
-          asset_content_type: application/zip
+        env:
+          ZIP_PATH: ${{ env.ZIP_PATH }}
+        run: |
+          echo "Uploading $ZIP_PATH"
+          gh release upload "${{ github.event.release.tag_name }}" "$ZIP_PATH" --clobber
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
