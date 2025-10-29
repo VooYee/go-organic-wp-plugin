@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Go/Organic WP Plugin
  * Description: A plugin to bulk-create posts via a REST API with SEO plugin integration (Yoast, RankMath, SEOPress, AIOSEO) and advanced tracking system.
- * Version: 0.9.7
+ * Version: 0.10.0
  * Author: Purple Box AI
  * Requires at least: 5.0
  * Tested up to: 6.4
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 
 // Define plugin constants
 define('GO_ORGANIC_URL', 'https://api.go-organic.ai');
-define('GO_ORGANIC_VERSION', '0.9.7');
+define('GO_ORGANIC_VERSION', '0.10.0');
 define('GO_ORGANIC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GO_ORGANIC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -93,6 +93,14 @@ function go_organic_register_post_meta() {
             'type'              => 'string',
             'sanitize_callback' => 'go_organic_sanitize_schema_markup',
         ),
+        '_goorganic_ai_scan'        => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'go_organic_sanitize_ai_scan',
+        ),
+        '_goorganic_ai_score'       => array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+        ),
     );
 
     $post_types = array('post', 'page', 'product');
@@ -150,6 +158,83 @@ function go_organic_sanitize_schema_markup($value) {
 
     // Fall back to a safe sanitized string if JSON is invalid.
     return sanitize_textarea_field($value);
+}
+
+/**
+ * Sanitize AI scan object.
+ *
+ * Expected structure:
+ * {
+ *   overallScore: number,
+ *   scannedAt: string (ISO date),
+ *   sections: array of {
+ *     label: string,
+ *     category: string,
+ *     error: string,
+ *     suggestion: string,
+ *     score: number
+ *   }
+ * }
+ *
+ * @param mixed $value Raw value from the request.
+ * @return string Sanitized AI scan data as JSON string.
+ */
+function go_organic_sanitize_ai_scan($value) {
+    // Handle array input
+    if (is_array($value)) {
+        $data = $value;
+    } elseif (is_string($value)) {
+        $value = wp_unslash($value);
+        $data = json_decode($value, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return '';
+        }
+    } else {
+        return '';
+    }
+
+    // Validate and sanitize structure
+    $sanitized = array();
+
+    // Validate overallScore
+    if (isset($data['overallScore'])) {
+        $sanitized['overallScore'] = floatval($data['overallScore']);
+    } else {
+        return ''; // Required field
+    }
+
+    // Validate scannedAt
+    if (isset($data['scannedAt']) && is_string($data['scannedAt'])) {
+        $sanitized['scannedAt'] = sanitize_text_field($data['scannedAt']);
+    } else {
+        return ''; // Required field
+    }
+
+    // Validate sections array
+    if (isset($data['sections']) && is_array($data['sections'])) {
+        $sanitized['sections'] = array();
+
+        foreach ($data['sections'] as $section) {
+            if (!is_array($section)) {
+                continue;
+            }
+
+            $sanitized_section = array(
+                'label'      => isset($section['label']) ? sanitize_text_field($section['label']) : '',
+                'category'   => isset($section['category']) ? sanitize_text_field($section['category']) : '',
+                'error'      => isset($section['error']) ? sanitize_textarea_field($section['error']) : '',
+                'suggestion' => isset($section['suggestion']) ? sanitize_textarea_field($section['suggestion']) : '',
+                'score'      => isset($section['score']) ? floatval($section['score']) : 0.0,
+            );
+
+            $sanitized['sections'][] = $sanitized_section;
+        }
+    } else {
+        $sanitized['sections'] = array();
+    }
+
+    return wp_json_encode($sanitized);
 }
 
 /**
@@ -343,4 +428,68 @@ function go_organic_set_schema_markup($post_id, $schema_data)
     }
 
     return $result;
+}
+
+/**
+ * Get AI scan data for a post
+ * @param int $post_id Post ID, defaults to current post
+ * @return array|null Decoded AI scan data or null
+ */
+function go_organic_get_ai_scan($post_id = null)
+{
+    if (!$post_id) {
+        $post_id = get_the_ID();
+    }
+
+    $ai_scan = get_post_meta($post_id, '_goorganic_ai_scan', true);
+    if (!empty($ai_scan)) {
+        $decoded = json_decode($ai_scan, true);
+        return (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+    }
+
+    return null;
+}
+
+/**
+ * Get AI score for a post
+ * @param int $post_id Post ID, defaults to current post
+ * @return string|null AI score or null
+ */
+function go_organic_get_ai_score($post_id = null)
+{
+    if (!$post_id) {
+        $post_id = get_the_ID();
+    }
+
+    $ai_score = get_post_meta($post_id, '_goorganic_ai_score', true);
+    return !empty($ai_score) ? $ai_score : null;
+}
+
+/**
+ * Set AI scan data for a post
+ * @param int $post_id Post ID
+ * @param array|string $ai_scan_data AI scan data
+ * @return bool
+ */
+function go_organic_set_ai_scan($post_id, $ai_scan_data)
+{
+    // Sanitize using our custom sanitization function
+    $sanitized = go_organic_sanitize_ai_scan($ai_scan_data);
+
+    if (empty($sanitized)) {
+        return false;
+    }
+
+    return update_post_meta($post_id, '_goorganic_ai_scan', $sanitized);
+}
+
+/**
+ * Set AI score for a post
+ * @param int $post_id Post ID
+ * @param string $score AI score
+ * @return bool
+ */
+function go_organic_set_ai_score($post_id, $score)
+{
+    return update_post_meta($post_id, '_goorganic_ai_score', sanitize_text_field($score));
 }

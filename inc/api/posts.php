@@ -125,19 +125,15 @@ function go_organic_bulk_create_posts($request)
         $post_id = wp_insert_post($post_data);
 
         if (!is_wp_error($post_id)) {
-            // Handle SEO meta fields if provided
             if (!empty($item['seo_title'])) {
                 update_post_meta($post_id, '_seo_title', sanitize_text_field($item['seo_title']));
-                // Update SEO plugin specific meta fields
                 go_organic_update_seo_plugin_title($post_id, $item['seo_title']);
             }
             if (!empty($item['seo_description'])) {
                 update_post_meta($post_id, '_seo_description', sanitize_text_field($item['seo_description']));
-                // Update SEO plugin specific meta fields
                 go_organic_update_seo_plugin_description($post_id, $item['seo_description']);
             }
             if (!empty($item['schema_markup'])) {
-                // Validate JSON for schema markup
                 $schema_data = $item['schema_markup'];
                 if (is_string($schema_data)) {
                     $decoded = json_decode($schema_data, true);
@@ -157,6 +153,16 @@ function go_organic_bulk_create_posts($request)
             // Handle SEO plugin specific slug if different from WordPress slug
             if (!empty($item['seo_slug']) && $item['seo_slug'] !== $real_slug) {
                 go_organic_update_seo_plugin_slug($post_id, $item['seo_slug']);
+            }
+
+            // Handle AI scan data
+            if (!empty($item['ai_scan'])) {
+                go_organic_set_ai_scan($post_id, $item['ai_scan']);
+            }
+
+            // Handle AI score
+            if (isset($item['ai_score'])) {
+                go_organic_set_ai_score($post_id, $item['ai_score']);
             }
 
             $created[] = [
@@ -256,14 +262,18 @@ function go_organic_export_posts($request)
                 'author' => get_the_author_meta('ID'),
                 'author_name' => get_the_author(),
                 'category' => $primary_category,
-                'categories' => array_map(function($cat) { return $cat->name; }, $categories),
+                'categories' => array_map(function ($cat) {
+                    return $cat->name; }, $categories),
                 'url' => get_permalink(),
                 'comment_status' => get_comments_number() > 0 ? 'open' : 'closed',
                 'ping_status' => 'closed',
                 // SEO and schema meta fields (internal plugin)
                 'seo_title' => get_post_meta($post_id, '_seo_title', true),
                 'seo_description' => get_post_meta($post_id, '_seo_description', true),
-                'schema_markup' => get_post_meta($post_id, '_schema_markup', true)
+                'schema_markup' => get_post_meta($post_id, '_schema_markup', true),
+                // AI scan data
+                'ai_scan' => go_organic_get_ai_scan($post_id),
+                'ai_score' => go_organic_get_ai_score($post_id)
             ];
 
             // Add SEO plugin specific data
@@ -308,7 +318,7 @@ function go_organic_export_posts_csv($posts, $meta)
     }
 
     // CSV headers
-    $headers = ['id', 'title', 'content', 'slug', 'excerpt', 'status', 'date', 'author', 'author_name', 'category', 'categories', 'url', 'comment_status', 'ping_status', 'seo_title', 'seo_description', 'schema_markup', 'plugin_seo_title', 'plugin_seo_description', 'plugin_focus_keyword', 'active_seo_plugin'];
+    $headers = ['id', 'title', 'content', 'slug', 'excerpt', 'status', 'date', 'author', 'author_name', 'category', 'categories', 'url', 'comment_status', 'ping_status', 'seo_title', 'seo_description', 'schema_markup', 'plugin_seo_title', 'plugin_seo_description', 'plugin_focus_keyword', 'active_seo_plugin', 'ai_scan', 'ai_score'];
 
     // Start building CSV content
     $csv_lines = [];
@@ -807,10 +817,43 @@ function go_organic_register_posts_api()
                                 ['type' => 'object'],
                                 ['type' => 'string']
                             ]
+                        ],
+                        'ai_scan' => [
+                            'description' => 'AI scan data with overall score, scanned date, and sections',
+                            'type' => 'object',
+                            'properties' => [
+                                'overallScore' => [
+                                    'description' => 'Overall AI scan score',
+                                    'type' => 'number'
+                                ],
+                                'scannedAt' => [
+                                    'description' => 'ISO date string when scan was performed',
+                                    'type' => 'string',
+                                    'format' => 'date-time'
+                                ],
+                                'sections' => [
+                                    'description' => 'Array of scanned sections',
+                                    'type' => 'array',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'label' => ['type' => 'string'],
+                                            'category' => ['type' => 'string'],
+                                            'error' => ['type' => 'string'],
+                                            'suggestion' => ['type' => 'string'],
+                                            'score' => ['type' => 'number']
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'ai_score' => [
+                            'description' => 'Overall AI score (string)',
+                            'type' => 'string'
                         ]
                     ]
                 ],
-                'validate_callback' => function($param, $request, $key) {
+                'validate_callback' => function ($param, $request, $key) {
                     if (!is_array($param)) {
                         return new WP_Error('invalid_posts', 'Posts parameter must be an array');
                     }
@@ -879,7 +922,7 @@ function go_organic_register_posts_api()
     // SEO plugins info endpoint
     register_rest_route('seo-gen/v1', '/seo-plugins', [
         'methods' => 'GET',
-        'callback' => function() {
+        'callback' => function () {
             $active_plugins = go_organic_get_active_seo_plugins();
             return rest_ensure_response([
                 'active_plugins' => $active_plugins,
@@ -887,10 +930,10 @@ function go_organic_register_posts_api()
                 'supported_features' => [
                     'title_optimization' => !empty($active_plugins),
                     'meta_description' => !empty($active_plugins),
-                    'focus_keywords' => !empty(array_filter($active_plugins, function($plugin) {
+                    'focus_keywords' => !empty(array_filter($active_plugins, function ($plugin) {
                         return in_array('focus_keyword', $plugin['supported_fields']);
                     })),
-                    'schema_markup' => !empty(array_filter($active_plugins, function($plugin) {
+                    'schema_markup' => !empty(array_filter($active_plugins, function ($plugin) {
                         return in_array('schema', $plugin['supported_fields']);
                     }))
                 ]
