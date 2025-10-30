@@ -95,7 +95,7 @@ function go_organic_register_post_meta() {
         ),
         '_goorganic_ai_scan'        => array(
             'type'              => 'string',
-            'sanitize_callback' => 'go_organic_sanitize_ai_scan',
+            'sanitize_callback' => 'go_organic_sanitize_schema_markup',
         ),
         '_goorganic_ai_score'       => array(
             'type'              => 'string',
@@ -160,50 +160,6 @@ function go_organic_sanitize_schema_markup($value) {
     return sanitize_textarea_field($value);
 }
 
-/**
- * Sanitize AI scan object.
- *
- * Expected structure:
- * {
- *   overallScore: number,
- *   scannedAt: string (ISO date),
- *   sections: array of {
- *     label: string,
- *     category: string,
- *     error: string,
- *     suggestion: string,
- *     score: number
- *   }
- * }
- *
- * @param mixed $value Raw value from the request.
- * @return string Sanitized AI scan data as JSON string.
- */
-function go_organic_sanitize_ai_scan($value) {
-    // Preserve and validate raw JSON strings: if caller provided a JSON string
-    // we validate it and return the original string unchanged so the plugin
-    // stores exactly what was provided (preserving object keys and HTML).
-    if (is_string($value)) {
-        $raw = wp_unslash($value);
-        $decoded = json_decode($raw, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            // Return the original JSON string (after unslash) to preserve
-            // formatting, object keys and any HTML inside suggestion fields.
-            return $raw;
-        }
-
-        // Invalid JSON string
-        return '';
-    }
-
-    // If an array/object was passed instead, encode it to JSON and return.
-    if (is_array($value)) {
-        return wp_json_encode($value);
-    }
-
-    // Unsupported type
-    return '';
-}
 
 /**
  * Sync SEO Gen custom meta fields into Yoast SEO meta keys.
