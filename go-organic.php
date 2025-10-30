@@ -180,61 +180,29 @@ function go_organic_sanitize_schema_markup($value) {
  * @return string Sanitized AI scan data as JSON string.
  */
 function go_organic_sanitize_ai_scan($value) {
-    // Handle array input
-    if (is_array($value)) {
-        $data = $value;
-    } elseif (is_string($value)) {
-        $value = wp_unslash($value);
-        $data = json_decode($value, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return '';
+    // Preserve and validate raw JSON strings: if caller provided a JSON string
+    // we validate it and return the original string unchanged so the plugin
+    // stores exactly what was provided (preserving object keys and HTML).
+    if (is_string($value)) {
+        $raw = wp_unslash($value);
+        $decoded = json_decode($raw, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            // Return the original JSON string (after unslash) to preserve
+            // formatting, object keys and any HTML inside suggestion fields.
+            return $raw;
         }
-    } else {
+
+        // Invalid JSON string
         return '';
     }
 
-    // Validate and sanitize structure
-    $sanitized = array();
-
-    // Validate overallScore
-    if (isset($data['overallScore'])) {
-        $sanitized['overallScore'] = floatval($data['overallScore']);
-    } else {
-        return ''; // Required field
+    // If an array/object was passed instead, encode it to JSON and return.
+    if (is_array($value)) {
+        return wp_json_encode($value);
     }
 
-    // Validate scannedAt
-    if (isset($data['scannedAt']) && is_string($data['scannedAt'])) {
-        $sanitized['scannedAt'] = sanitize_text_field($data['scannedAt']);
-    } else {
-        return ''; // Required field
-    }
-
-    // Validate sections array
-    if (isset($data['sections']) && is_array($data['sections'])) {
-        $sanitized['sections'] = array();
-
-        foreach ($data['sections'] as $section) {
-            if (!is_array($section)) {
-                continue;
-            }
-
-            $sanitized_section = array(
-                'label'      => isset($section['label']) ? sanitize_text_field($section['label']) : '',
-                'category'   => isset($section['category']) ? sanitize_text_field($section['category']) : '',
-                'error'      => isset($section['error']) ? sanitize_textarea_field($section['error']) : '',
-                'suggestion' => isset($section['suggestion']) ? sanitize_textarea_field($section['suggestion']) : '',
-                'score'      => isset($section['score']) ? floatval($section['score']) : 0.0,
-            );
-
-            $sanitized['sections'][] = $sanitized_section;
-        }
-    } else {
-        $sanitized['sections'] = array();
-    }
-
-    return wp_json_encode($sanitized);
+    // Unsupported type
+    return '';
 }
 
 /**
