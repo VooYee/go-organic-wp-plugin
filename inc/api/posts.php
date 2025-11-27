@@ -165,6 +165,11 @@ function go_organic_bulk_create_posts($request)
                 go_organic_set_ai_score($post_id, $item['ai_score']);
             }
 
+            // Log the insertion
+            if (function_exists('go_organic_log_activity')) {
+                go_organic_log_activity($post_id, $title, $post_data['post_status'], 'created', 'Post created via API');
+            }
+
             $created[] = [
                 'new_id' => $post_id,
                 'source_id' => $source_id,
@@ -988,6 +993,20 @@ function go_organic_register_posts_api()
 add_action('rest_api_init', 'go_organic_register_posts_api');
 
 /**
+ * Plugin activation handler.
+ * Creates custom roles and database tables.
+ *
+ * @return void
+ */
+function go_organic_on_activation()
+{
+    go_organic_create_custom_role();
+    if (function_exists('go_organic_create_log_table')) {
+        go_organic_create_log_table();
+    }
+}
+
+/**
  * Create custom role and capabilities for Go/Organic.
  *
  * @return void
@@ -1009,7 +1028,7 @@ function go_organic_create_custom_role()
         $editor_role->add_cap('go_organic_export_posts');
     }
 }
-register_activation_hook(GO_ORGANIC_PLUGIN_DIR . 'go-organic.php', 'go_organic_create_custom_role');
+register_activation_hook(GO_ORGANIC_PLUGIN_DIR . 'go-organic.php', 'go_organic_on_activation');
 
 /**
  * Remove custom capabilities on deactivation.

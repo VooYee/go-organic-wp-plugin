@@ -234,6 +234,83 @@ function go_organic_display_admin_interface($api_username, $new_password_info, $
         <?php else: ?>
             <p>Please generate an application password first before connecting to Go/Organic.</p>
         <?php endif; ?>
+
+        <!-- Activity Log Section -->
+        <h2 style="margin-top:30px;">Activity Log</h2>
+        <?php
+        if (function_exists('go_organic_get_logs')) {
+            $page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+            $per_page = 20;
+            $offset = ($page - 1) * $per_page;
+            
+            $logs = go_organic_get_logs($per_page, $offset);
+            $total_logs = go_organic_count_logs();
+            $total_pages = ceil($total_logs / $per_page);
+            
+            if ($logs) {
+                ?>
+                <table class="wp-list-table widefat fixed striped table-view-list">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">Date</th>
+                            <th style="width: 100px;">Action</th>
+                            <th>Title</th>
+                            <th style="width: 100px;">Status</th>
+                            <th style="width: 80px;">Post ID</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($logs as $log): ?>
+                            <tr>
+                                <td><?php echo esc_html($log->created_at); ?></td>
+                                <td><span class="badge badge-<?php echo esc_attr($log->action); ?>"><?php echo esc_html(ucfirst($log->action)); ?></span></td>
+                                <td>
+                                    <?php if ($log->post_id > 0): ?>
+                                        <a href="<?php echo esc_url(get_edit_post_link($log->post_id)); ?>" target="_blank">
+                                            <?php echo esc_html($log->title); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <?php echo esc_html($log->title); ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html(ucfirst($log->status)); ?></td>
+                                <td><?php echo esc_html($log->post_id); ?></td>
+                                <td><?php echo esc_html($log->message); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+                
+                <!-- Pagination -->
+                <?php if ($total_pages > 1): ?>
+                    <div class="tablenav bottom">
+                        <div class="tablenav-pages">
+                            <span class="displaying-num"><?php echo $total_logs; ?> items</span>
+                            <span class="pagination-links">
+                                <?php
+                                echo paginate_links([
+                                    'base' => add_query_arg('paged', '%#%'),
+                                    'format' => '',
+                                    'prev_text' => __('&laquo;'),
+                                    'next_text' => __('&raquo;'),
+                                    'total' => $total_pages,
+                                    'current' => $page
+                                ]);
+                                ?>
+                            </span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                
+                <?php
+            } else {
+                echo '<p>No activity logs found.</p>';
+            }
+        } else {
+            echo '<p class="description">Logging system not active.</p>';
+        }
+        ?>
     </div>
     <?php
 }
