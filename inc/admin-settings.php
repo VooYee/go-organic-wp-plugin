@@ -73,6 +73,8 @@ function go_organic_render_admin_page()
         $is_connected = go_organic_check_connection($stored_api_key);
     }
 
+
+
     // Display the admin interface
     go_organic_display_admin_interface($api_username, $new_password_info, $stored_password, $stored_api_key, $is_connected, $connect_message);
 }
@@ -159,6 +161,7 @@ function go_organic_handle_connection($username, $password)
  * @param string $stored_api_key The stored API key.
  * @param bool $is_connected Connection status.
  * @param string $connect_message Connection message.
+ * @param string $connect_message Connection message.
  * @return void
  */
 function go_organic_display_admin_interface($api_username, $new_password_info, $stored_password, $stored_api_key, $is_connected, $connect_message)
@@ -242,11 +245,11 @@ function go_organic_display_admin_interface($api_username, $new_password_info, $
             $page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
             $per_page = 20;
             $offset = ($page - 1) * $per_page;
-            
+
             $logs = go_organic_get_logs($per_page, $offset);
             $total_logs = go_organic_count_logs();
             $total_pages = ceil($total_logs / $per_page);
-            
+
             if ($logs) {
                 ?>
                 <table class="wp-list-table widefat fixed striped table-view-list">
@@ -281,7 +284,7 @@ function go_organic_display_admin_interface($api_username, $new_password_info, $
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                
+
                 <!-- Pagination -->
                 <?php if ($total_pages > 1): ?>
                     <div class="tablenav bottom">
@@ -302,7 +305,7 @@ function go_organic_display_admin_interface($api_username, $new_password_info, $
                         </div>
                     </div>
                 <?php endif; ?>
-                
+
                 <?php
             } else {
                 echo '<p>No activity logs found.</p>';
